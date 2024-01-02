@@ -7,6 +7,9 @@ from reportlab.pdfgen import canvas
 from docx2pdf import convert
 from fpdf import FPDF
 from os.path import join, exists
+from PyPDF2 import PdfReader
+from docx import Document
+from flask import request
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'txt', 'docx'}
@@ -124,8 +127,18 @@ def index():
             # Redirect to the 'index' route
             return redirect(url_for('index'))
 
-    # Render the template with passages from the session
+        if 'pdf_to_docx' in request.form: # Adăugăm condiția pentru conversia PDF to Word
+            if 'current_file.pdf' in os.listdir(app.config['UPLOAD_FOLDER']):
+                pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'current_file.pdf')
+                docx_filename = convert_pdf_to_docx(pdf_path)
+                return send_file(docx_filename, as_attachment=True, download_name='converted_file.docx')
+            else:
+                flash('Nu există un fișier PDF pentru conversie')
+                return redirect(url_for('index'))
+
+    # Renderea șablonului index.html cu modificările pentru conversia PDF to Word
     return render_template('index.html', current_file=get_current_file())
+
 
 def get_current_file():
 
@@ -134,6 +147,31 @@ def get_current_file():
         if os.path.exists(current_file_path + '.' + extension):
             return f'Current file selected: {os.path.basename(current_file_path + "." + extension)}'
     return '[none]'
+
+
+def convert_pdf_to_docx(pdf_path):
+    import PyPDF2
+    from docx import Document
+
+    def extract_text_from_pdf(pdf_path):
+        with open(pdf_path, 'rb') as pdf_file:
+            reader = PyPDF2.PdfReader(pdf_file)
+            num_pages = len(reader.pages)
+            text = ''
+            for page_num in range(num_pages):
+                page = reader.getPage(page_num)
+                text += page.extract_text()
+            return text
+
+    pdf_text = extract_text_from_pdf(pdf_path)
+
+    doc = Document()
+    doc.add_paragraph(pdf_text)
+    docx_filename = os.path.splitext(pdf_path)[0] + '.docx'  # Schimbarea extensiei
+    doc.save(docx_filename)
+
+    return docx_filename
+
 
 @app.route('/process_passage', methods=['POST'])
 def process_passage():
@@ -190,6 +228,34 @@ def process_passage():
 
     pdf_filename = generate_filled_pdf(new_text, file_path, extension)
     return send_file(pdf_filename, as_attachment=True, download_name='generated_file.pdf')
+
+@app.route('/pdf_to_docx', methods=['GET', 'POST'])
+def pdf_to_docx():
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
+
+        file = request.files['file']
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+
+        # Verifică dacă fișierul este PDF
+        if file and file.filename.endswith('.pdf'):
+            pdf_reader = PdfReader(file)
+            pdf_text = ''
+            for page in pdf_reader.pages:
+                pdf_text += page.extract_text()
+
+            doc = Document()
+            doc.add_paragraph(pdf_text)
+            docx_filename = 'converted_file.docx'
+            doc.save(docx_filename)
+            
+            return send_file(docx_filename, as_attachment=True, download_name='converted_file.docx')
+
+    return render_template('index.html')
 
 if __name__ == "__main__":
     

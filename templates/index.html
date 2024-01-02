@@ -8,11 +8,13 @@
 {% block body %}
     <h3>Mondialu</h3>
 
+    <!-- Formular pentru încărcarea unui fișier Word -->
     <form method="POST" action="{{ url_for('index') }}" enctype="multipart/form-data">
         <input type="file" name="file">
         <input type="submit" value="Upload">
     </form>
 
+    <!-- Mesaje flash -->
     {% with messages = get_flashed_messages() %}
         {% if messages %}
             <ul class="flashes">
@@ -23,26 +25,12 @@
         {% endif %}
     {% endwith %}
 
+    <!-- Informații despre fișierul curent -->
     <p>{{ current_file }}</p>
 
-    <!-- {% if passages %}
-    <form method="POST" action="{{ url_for('process_passage') }}">
-        {% for passage in passages %}
-            {% if passage.startswith('_') %}
-                <label for="textfield_{{ loop.index }}">Fill in the blanks:</label>
-                <input type="text" name="textfield_{{ loop.index }}" required><br>
-            {% else %}
-                <p>{{ passage }}</p>
-            {% endif %}
-        {% endfor %}
-        <input type="hidden" name="passages" value="{{ passages }}">
-        <input type="submit" value="Submit">
-    </form>
-    {% else %}
-        <p>No current file selected. Upload a file first.</p>
-    {% endif %} -->
-
+    <!-- Verificare dacă există pasaje pentru completare -->
     {% if session['passages'] %}
+        <!-- Formular pentru completarea pasajelor -->
         <form method="POST" action="{{ url_for('process_passage') }}">
             {% for passage in session['passages'] %}
                 {% if passage.startswith('_') %}
@@ -56,7 +44,15 @@
             <input type="submit" value="Submit">
         </form>
     {% else %}
+        <!-- Mesaj pentru cazul în care nu este selectat niciun fișier -->
         <p>No current file selected. Upload a file first.</p>
     {% endif %}
 
+    <!-- Formular pentru conversia PDF to Word -->
+    <h3>Convert PDF to Word</h3>
+    <form method="POST" action="{{ url_for('pdf_to_docx') }}" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <input type="submit" value="Convert to Word">
+    </form>
+    
 {% endblock %}
